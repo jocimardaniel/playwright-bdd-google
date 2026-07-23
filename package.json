@@ -1,0 +1,17 @@
+{
+  "name": "playwright-bdd-google",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright + Cucumber BDD project for Google search",
+  "scripts": {
+    "test:bdd": "cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts --require tests/support/**/*.ts --format progress --format json:reports/cucumber-report.json",
+    "report:bdd": "node scripts/generate-cucumber-report.js"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.0.0",
+    "@playwright/test": "^1.52.0",
+    "playwright": "^1.52.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
