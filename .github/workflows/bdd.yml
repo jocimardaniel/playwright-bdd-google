@@ -81,7 +81,9 @@ jobs:
         run: |
           if [ -n "$SMTP_SERVER" ] && [ -n "$SMTP_PORT" ] && [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ] && [ -n "$SMTP_FROM" ] && [ -n "$SMTP_TO" ]; then
             python3 - <<'PY'
-            import os, smtplib, ssl
+            import os
+            import smtplib
+            import ssl
             from email.message import EmailMessage
 
             msg = EmailMessage()
