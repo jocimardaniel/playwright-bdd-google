@@ -41,7 +41,16 @@ const workflowStatus = process.env.GITHUB_WORKFLOW_STATUS || overallStatus;
 const workflowUrl = process.env.GITHUB_RUN_URL || '';
 const workflowName = process.env.GITHUB_WORKFLOW || 'Playwright BDD';
 const runNumber = process.env.GITHUB_RUN_NUMBER || 'local';
-const executionTimestamp = new Date().toLocaleString('pt-BR');
+const executionTimestamp = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+}).format(new Date()) + ' BRT';
 
 const html = `<!DOCTYPE html>
 <html lang="pt-BR">
