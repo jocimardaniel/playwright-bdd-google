@@ -6,15 +6,25 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const timestampedPath = path.join(reportsDir, `cucumber-report-${timestamp}.html`);
 
-  const reportFiles = [
-    path.join(reportsDir, 'cucumber-report.json'),
-    ...fs.existsSync(reportsDir)
-      ? fs.readdirSync(reportsDir)
-          .filter((file) => /^cucumber-report-.*\.json$/.test(file) && file !== 'cucumber-report.json')
-          .sort()
-          .map((file) => path.join(reportsDir, file))
-      : [],
-  ];
+  const reportFiles = [];
+  
+  // Primeiro, procurar por relatórios de navegadores específicos
+  if (fs.existsSync(reportsDir)) {
+    const specificBrowserReports = fs.readdirSync(reportsDir)
+      .filter((file) => /^cucumber-report-(chromium|firefox|webkit)\.json$/.test(file))
+      .sort()
+      .map((file) => path.join(reportsDir, file));
+    
+    if (specificBrowserReports.length > 0) {
+      reportFiles.push(...specificBrowserReports);
+    } else {
+      // Se não houver relatórios específicos de navegadores, usar o geral
+      const generalReport = path.join(reportsDir, 'cucumber-report.json');
+      if (fs.existsSync(generalReport)) {
+        reportFiles.push(generalReport);
+      }
+    }
+  }
 
   const results = [];
   for (const filePath of reportFiles) {
@@ -26,11 +36,26 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        const browserName = path.basename(filePath).replace('cucumber-report-', '').replace('.json', '') || 'default';
+        const fileName = path.basename(filePath);
+        const browserName = fileName.replace('cucumber-report-', '').replace('.json', '') || 'default';
         results.push(...parsed.map((feature) => ({ ...feature, browser: browserName })));
       }
     } catch (error) {
       console.warn(`Ignorando relatório inválido em ${filePath}: ${error.message}`);
+    }
+  }
+
+  // Extrair histórico das últimas 5 execuções
+  const executionMetadataPath = path.join(reportsDir, 'executions.json');
+  
+  // Ler arquivo de metadata existente
+  let existingMetadata = [];
+  if (fs.existsSync(executionMetadataPath)) {
+    try {
+      const raw = fs.readFileSync(executionMetadataPath, 'utf8');
+      existingMetadata = JSON.parse(raw);
+    } catch (error) {
+      console.warn(`Erro ao ler metadata de execuções: ${error.message}`);
     }
   }
 
@@ -56,6 +81,53 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
         duration: element.steps?.reduce((total, step) => total + (step.result?.duration || 0), 0) || 0,
       });
     }
+  }
+
+  // Adicionar execução atual ao histórico
+  const currentExecution = {
+    timestamp: new Date().toISOString(),
+    passed: 0,
+    failed: 0,
+    skipped: 0
+  };
+
+  // Calcular estatísticas da execução atual
+  for (const scenario of scenarios) {
+    if (scenario.status === 'passed') currentExecution.passed++;
+    else if (scenario.status === 'failed') currentExecution.failed++;
+    else if (scenario.status === 'skipped') currentExecution.skipped++;
+  }
+
+  // Adicionar execução atual e manter apenas as últimas 5
+  existingMetadata.push(currentExecution);
+  const latestExecutions = existingMetadata.slice(-5).reverse();
+
+  // Salvar metadata atualizada
+  fs.writeFileSync(executionMetadataPath, JSON.stringify(existingMetadata, null, 2));
+
+  // Construir histórico formatado
+  const executionHistory = [];
+  for (const exec of latestExecutions) {
+    const execDate = new Date(exec.timestamp);
+    const formattedDate = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).format(execDate) + ' BRT';
+
+    executionHistory.push({
+      timestamp: formattedDate,
+      passed: exec.passed,
+      failed: exec.failed,
+      skipped: exec.skipped,
+      total: exec.passed + exec.failed + exec.skipped,
+      status: exec.failed > 0 ? 'failed' : 'passed'
+    });
   }
 
   const passed = scenarios.filter((scenario) => scenario.status === 'passed').length;
@@ -149,6 +221,26 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
       .status.failed { color: #b91c1c; }
       .status.skipped { color: #b45309; }
       .meta { color: #6b7280; margin-bottom: 12px; }
+      .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 24px 0 12px;
+        color: #111827;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 8px;
+      }
+      .history-table {
+        font-size: 14px;
+      }
+      .history-table td {
+        padding: 8px 10px;
+      }
+      .history-row {
+        background: #f9fafb;
+      }
+      .history-row:hover {
+        background: #f3f4f6;
+      }
     </style>
   </head>
   <body>
@@ -186,6 +278,37 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
             </tr>`).join('')}
         </tbody>
       </table>
+
+      ${executionHistory.length > 0 ? `
+      <div class="section-title">Histórico das Últimas Execuções</div>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Data/Hora</th>
+            <th>Passou</th>
+            <th>Falhou</th>
+            <th>Pulado</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${executionHistory.map((exec, index) => {
+            return `
+            <tr class="history-row">
+              <td><strong>${index + 1}</strong></td>
+              <td>${exec.timestamp}</td>
+              <td style="color: #15803d; font-weight: 600;">${exec.passed}</td>
+              <td style="color: #b91c1c; font-weight: 600;">${exec.failed}</td>
+              <td style="color: #b45309; font-weight: 600;">${exec.skipped}</td>
+              <td><strong>${exec.total}</strong></td>
+              <td class="status ${exec.status}">${exec.status.toUpperCase()}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      ` : ''}
     </div>
   </body>
 </html>`;
