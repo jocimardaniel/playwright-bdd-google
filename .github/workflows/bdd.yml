@@ -63,7 +63,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Send email on failure
-        if: always() && failure()
+        if: ${{ always() && failure() }}
         env:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
@@ -74,21 +74,21 @@ jobs:
         run: |
           if [ -n "$SMTP_SERVER" ] && [ -n "$SMTP_PORT" ] && [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ] && [ -n "$SMTP_FROM" ] && [ -n "$SMTP_TO" ]; then
             python3 - <<'PY'
-import os, smtplib, ssl
-from email.message import EmailMessage
+            import os, smtplib, ssl
+            from email.message import EmailMessage
 
-msg = EmailMessage()
-msg['Subject'] = 'Playwright BDD test run failed'
-msg['From'] = os.environ['SMTP_FROM']
-msg['To'] = os.environ['SMTP_TO']
-msg.set_content('The scheduled Playwright BDD run failed. Please open the GitHub Actions run and the generated report for details.')
+            msg = EmailMessage()
+            msg['Subject'] = 'Playwright BDD test run failed'
+            msg['From'] = os.environ['SMTP_FROM']
+            msg['To'] = os.environ['SMTP_TO']
+            msg.set_content('The scheduled Playwright BDD run failed. Please open the GitHub Actions run and the generated report for details.')
 
-context = ssl.create_default_context()
-with smtplib.SMTP(os.environ['SMTP_SERVER'], int(os.environ['SMTP_PORT'])) as server:
-    server.starttls(context=context)
-    server.login(os.environ['SMTP_USERNAME'], os.environ['SMTP_PASSWORD'])
-    server.send_message(msg)
-PY
+            context = ssl.create_default_context()
+            with smtplib.SMTP(os.environ['SMTP_SERVER'], int(os.environ['SMTP_PORT'])) as server:
+                server.starttls(context=context)
+                server.login(os.environ['SMTP_USERNAME'], os.environ['SMTP_PASSWORD'])
+                server.send_message(msg)
+            PY
           else
             echo 'SMTP secrets not configured; skipping email notification.'
           fi
