@@ -39,6 +39,11 @@ jobs:
 
       - name: Generate HTML report
         if: always()
+        env:
+          GITHUB_WORKFLOW_STATUS: ${{ job.status }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: npm run report:bdd
 
       - name: Prepare Pages artifact

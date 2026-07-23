@@ -37,6 +37,11 @@ const passed = scenarios.filter((scenario) => scenario.status === 'passed').leng
 const failed = scenarios.filter((scenario) => scenario.status === 'failed').length;
 const skipped = scenarios.filter((scenario) => scenario.status === 'skipped').length;
 const overallStatus = failed > 0 ? 'failed' : 'passed';
+const workflowStatus = process.env.GITHUB_WORKFLOW_STATUS || overallStatus;
+const workflowUrl = process.env.GITHUB_RUN_URL || '';
+const workflowName = process.env.GITHUB_WORKFLOW || 'Playwright BDD';
+const runNumber = process.env.GITHUB_RUN_NUMBER || 'local';
+const executionTimestamp = new Date().toLocaleString('pt-BR');
 
 const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -73,6 +78,35 @@ const html = `<!DOCTYPE html>
       .card.passed { background: #16a34a; }
       .card.failed { background: #dc2626; }
       .card.skipped { background: #d97706; }
+      .status-banner {
+        padding: 16px 18px;
+        border-radius: 12px;
+        margin: 16px 0 20px;
+        font-weight: 700;
+        color: white;
+      }
+      .status-banner.passed { background: #15803d; }
+      .status-banner.failed { background: #b91c1c; }
+      .badge {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-right: 8px;
+      }
+      .badge.success { background: #dcfce7; color: #166534; }
+      .badge.failure { background: #fee2e2; color: #991b1b; }
+      .header-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 8px 0 12px;
+        color: #4b5563;
+        font-size: 14px;
+      }
       table { border-collapse: collapse; width: 100%; margin-top: 12px; }
       th, td { border: 1px solid #e5e7eb; padding: 10px; text-align: left; }
       th { background: #f3f4f6; }
@@ -86,12 +120,19 @@ const html = `<!DOCTYPE html>
   <body>
     <div class="container">
       <h1>Relatório BDD</h1>
-      <div class="meta">Execução: ${new Date().toLocaleString('pt-BR')}</div>
+      <div class="header-meta">
+        <span class="badge ${workflowStatus === 'passed' || workflowStatus === 'success' ? 'success' : 'failure'}">${workflowStatus.toUpperCase()}</span>
+        <span>Workflow: ${workflowName}</span>
+        <span>Execução: ${executionTimestamp}</span>
+        <span>Run: ${runNumber}</span>
+      </div>
+      <div class="status-banner ${workflowStatus}">Status final da execução: ${workflowStatus.toUpperCase()}</div>
       <div class="summary">
         <div class="card passed"><strong>Passou</strong><br />${passed}</div>
         <div class="card failed"><strong>Falhou</strong><br />${failed}</div>
         <div class="card skipped"><strong>Pulado</strong><br />${skipped}</div>
       </div>
+      ${workflowUrl ? `<p><a href="${workflowUrl}" target="_blank" rel="noreferrer">Abrir execução no GitHub Actions</a></p>` : ''}
       <table>
         <thead>
           <tr>
