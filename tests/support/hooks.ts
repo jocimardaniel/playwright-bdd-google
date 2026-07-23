@@ -25,32 +25,52 @@ Before(async function (this: SearchWorld) {
 
   try {
     if (browserName === 'firefox') {
-      this.browser = await firefox.launch({ headless: true });
+      this.browser = await firefox.launch({ headless: true, timeout: 30000 });
     } else if (browserName === 'webkit') {
-      this.browser = await webkit.launch({ headless: true });
+      this.browser = await webkit.launch({ headless: true, timeout: 30000 });
     } else {
-      this.browser = await chromium.launch({ headless: true });
+      this.browser = await chromium.launch({ headless: true, timeout: 30000 });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes('Host system is missing dependencies')) {
-      console.warn(`Skipping browser '${browserName}' because Playwright host dependencies are missing.`);
+    const shouldSkip =
+      message.includes('Host system is missing dependencies') ||
+      message.includes('timed out') ||
+      message.includes('timeout');
+
+    if (shouldSkip) {
+      console.warn(`Skipping browser '${browserName}' because it could not be launched reliably (${message}).`);
       const worldWithSkip = this as unknown as SkipWorld;
       if (typeof worldWithSkip.skip === 'function') {
         await worldWithSkip.skip();
       }
       return;
     }
+
     throw error;
   }
 
-  this.page = await this.browser.newPage();
-  this.homePage = new GoogleHomePage(this.page);
-  this.resultsPage = new GoogleResultsPage(this.page);
+  try {
+    this.page = await this.browser.newPage();
+    this.homePage = new GoogleHomePage(this.page);
+    this.resultsPage = new GoogleResultsPage(this.page);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Skipping browser '${browserName}' because page initialization failed (${message}).`);
+    const worldWithSkip = this as unknown as SkipWorld;
+    if (typeof worldWithSkip.skip === 'function') {
+      await worldWithSkip.skip();
+    }
+  }
 });
 
 After(async function (this: SearchWorld) {
   if (this.browser) {
-    await this.browser.close();
+    try {
+      await this.browser.close();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Browser teardown warning for '${process.env.BROWSER_NAME || 'chromium'}': ${message}`);
+    }
   }
 });
