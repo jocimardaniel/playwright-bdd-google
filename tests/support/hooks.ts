@@ -65,12 +65,14 @@ Before(async function (this: SearchWorld) {
 });
 
 After(async function (this: SearchWorld) {
-  if (this.browser) {
-    try {
-      await this.browser.close();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Browser teardown warning for '${process.env.BROWSER_NAME || 'chromium'}': ${message}`);
-    }
+  if (!this.browser) {
+    return;
+  }
+
+  try {
+    void this.browser.close().catch(() => undefined);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Browser teardown warning for '${process.env.BROWSER_NAME || 'chromium'}': ${message}`);
   }
 });
