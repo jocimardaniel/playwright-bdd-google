@@ -5,6 +5,7 @@
   "description": "Playwright + Cucumber BDD project for Google search",
   "scripts": {
     "test:bdd": "cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts --require tests/support/**/*.ts --format progress --format json:reports/cucumber-report.json",
+    "test:bdd:multi": "for browser in chromium firefox webkit; do echo \"Running $browser\"; BROWSER_NAME=$browser cucumber-js --require-module ts-node/register --require tests/steps/**/*.ts --require tests/support/**/*.ts --format progress --format json:reports/cucumber-report-$browser.json || exit 1; done",
     "report:bdd": "node scripts/generate-cucumber-report.js"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import { Before, After, setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, firefox, webkit, Browser, Page } from 'playwright';
 import { GoogleHomePage } from '../pages/google.home.page';
 import { GoogleResultsPage } from '../pages/google.results.page';
 
@@ -17,7 +17,16 @@ export class SearchWorld extends World {
 setWorldConstructor(SearchWorld);
 
 Before(async function (this: SearchWorld) {
-  this.browser = await chromium.launch({ headless: true });
+  const browserName = process.env.BROWSER_NAME || 'chromium';
+
+  if (browserName === 'firefox') {
+    this.browser = await firefox.launch({ headless: true });
+  } else if (browserName === 'webkit') {
+    this.browser = await webkit.launch({ headless: true });
+  } else {
+    this.browser = await chromium.launch({ headless: true });
+  }
+
   this.page = await this.browser.newPage();
   this.homePage = new GoogleHomePage(this.page);
   this.resultsPage = new GoogleResultsPage(this.page);

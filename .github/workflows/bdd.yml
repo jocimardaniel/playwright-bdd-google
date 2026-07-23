@@ -31,11 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
 
-      - name: Run BDD tests
-        run: npm run test:bdd
+      - name: Run BDD tests on all browsers
+        run: npm run test:bdd:multi
 
       - name: Generate HTML report
         if: always()
