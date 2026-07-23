@@ -26,7 +26,8 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        results.push(...parsed);
+        const browserName = path.basename(filePath).replace('cucumber-report-', '').replace('.json', '') || 'default';
+        results.push(...parsed.map((feature) => ({ ...feature, browser: browserName })));
       }
     } catch (error) {
       console.warn(`Ignorando relatório inválido em ${filePath}: ${error.message}`);
@@ -51,6 +52,7 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
         feature: feature.name,
         name: element.name,
         status,
+        browser: feature.browser || 'default',
         duration: element.steps?.reduce((total, step) => total + (step.result?.duration || 0), 0) || 0,
       });
     }
@@ -170,6 +172,7 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
           <tr>
             <th>Feature</th>
             <th>Cenário</th>
+            <th>Navegador</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -178,6 +181,7 @@ function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports'
             <tr>
               <td>${scenario.feature}</td>
               <td>${scenario.name}</td>
+              <td>${scenario.browser}</td>
               <td class="status ${scenario.status}">${scenario.status}</td>
             </tr>`).join('')}
         </tbody>
