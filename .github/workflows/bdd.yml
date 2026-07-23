@@ -9,6 +9,11 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   bdd-tests:
     runs-on: ubuntu-latest
@@ -36,6 +41,18 @@ jobs:
         if: always()
         run: npm run report:bdd
 
+      - name: Prepare Pages artifact
+        if: always()
+        run: |
+          mkdir -p public
+          cp reports/cucumber-report.html public/index.html
+
+      - name: Upload Pages artifact
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -43,3 +60,16 @@ jobs:
           name: bdd-report
           path: reports/
           if-no-files-found: warn
+
+  deploy-pages:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: bdd-tests
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
