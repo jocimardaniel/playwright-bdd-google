@@ -32,7 +32,9 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: |
+          npx playwright install --with-deps chromium firefox webkit
+          npx playwright install-deps
 
       - name: Run BDD tests on all browsers
         run: npm run test:bdd:multi
