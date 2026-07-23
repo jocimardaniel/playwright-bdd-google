@@ -1,58 +1,81 @@
 const fs = require('fs');
 const path = require('path');
 
-const reportsDir = path.join(__dirname, '..', 'reports');
-const inputPath = path.join(reportsDir, 'cucumber-report.json');
-const outputPath = path.join(reportsDir, 'cucumber-report.html');
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-const timestampedPath = path.join(reportsDir, `cucumber-report-${timestamp}.html`);
+function buildCucumberReport({ reportsDir = path.join(__dirname, '..', 'reports') } = {}) {
+  const outputPath = path.join(reportsDir, 'cucumber-report.html');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestampedPath = path.join(reportsDir, `cucumber-report-${timestamp}.html`);
 
-if (!fs.existsSync(inputPath)) {
-  console.error(`Relatório JSON não encontrado em ${inputPath}`);
-  process.exit(1);
-}
+  const reportFiles = [
+    path.join(reportsDir, 'cucumber-report.json'),
+    ...fs.existsSync(reportsDir)
+      ? fs.readdirSync(reportsDir)
+          .filter((file) => /^cucumber-report-.*\.json$/.test(file) && file !== 'cucumber-report.json')
+          .sort()
+          .map((file) => path.join(reportsDir, file))
+      : [],
+  ];
 
-const raw = fs.readFileSync(inputPath, 'utf8');
-const results = JSON.parse(raw);
+  const results = [];
+  for (const filePath of reportFiles) {
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
 
-const scenarios = [];
-for (const feature of results) {
-  for (const element of feature.elements || []) {
-    const status = element.steps?.some((step) => step.result.status === 'failed')
-      ? 'failed'
-      : element.steps?.every((step) => step.result.status === 'passed')
-        ? 'passed'
-        : 'skipped';
-
-    scenarios.push({
-      feature: feature.name,
-      name: element.name,
-      status,
-      duration: element.steps?.reduce((total, step) => total + (step.result.duration || 0), 0) || 0,
-    });
+    const raw = fs.readFileSync(filePath, 'utf8');
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        results.push(...parsed);
+      }
+    } catch (error) {
+      console.warn(`Ignorando relatório inválido em ${filePath}: ${error.message}`);
+    }
   }
-}
 
-const passed = scenarios.filter((scenario) => scenario.status === 'passed').length;
-const failed = scenarios.filter((scenario) => scenario.status === 'failed').length;
-const skipped = scenarios.filter((scenario) => scenario.status === 'skipped').length;
-const overallStatus = failed > 0 ? 'failed' : 'passed';
-const workflowStatus = process.env.GITHUB_WORKFLOW_STATUS || overallStatus;
-const workflowUrl = process.env.GITHUB_RUN_URL || '';
-const workflowName = process.env.GITHUB_WORKFLOW || 'Playwright BDD';
-const runNumber = process.env.GITHUB_RUN_NUMBER || 'local';
-const executionTimestamp = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: 'America/Sao_Paulo',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false
-}).format(new Date()) + ' BRT';
+  if (results.length === 0) {
+    console.error('Nenhum relatório JSON válido encontrado para gerar o HTML.');
+    process.exit(1);
+  }
 
-const html = `<!DOCTYPE html>
+  const scenarios = [];
+  for (const feature of results) {
+    for (const element of feature.elements || []) {
+      const status = element.steps?.some((step) => step.result?.status === 'failed')
+        ? 'failed'
+        : element.steps?.every((step) => step.result?.status === 'passed')
+          ? 'passed'
+          : 'skipped';
+
+      scenarios.push({
+        feature: feature.name,
+        name: element.name,
+        status,
+        duration: element.steps?.reduce((total, step) => total + (step.result?.duration || 0), 0) || 0,
+      });
+    }
+  }
+
+  const passed = scenarios.filter((scenario) => scenario.status === 'passed').length;
+  const failed = scenarios.filter((scenario) => scenario.status === 'failed').length;
+  const skipped = scenarios.filter((scenario) => scenario.status === 'skipped').length;
+  const overallStatus = failed > 0 ? 'failed' : 'passed';
+  const workflowStatus = process.env.GITHUB_WORKFLOW_STATUS || overallStatus;
+  const workflowUrl = process.env.GITHUB_RUN_URL || '';
+  const workflowName = process.env.GITHUB_WORKFLOW || 'Playwright BDD';
+  const runNumber = process.env.GITHUB_RUN_NUMBER || 'local';
+  const executionTimestamp = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(new Date()) + ' BRT';
+
+  const html = `<!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -163,9 +186,24 @@ const html = `<!DOCTYPE html>
   </body>
 </html>`;
 
-fs.mkdirSync(reportsDir, { recursive: true });
-fs.writeFileSync(outputPath, html);
-fs.writeFileSync(timestampedPath, html);
-console.log(`Relatório HTML gerado em ${outputPath}`);
-console.log(`Relatório com timestamp gerado em ${timestampedPath}`);
-console.log(`overall_status=${overallStatus}`);
+  fs.mkdirSync(reportsDir, { recursive: true });
+  fs.writeFileSync(outputPath, html);
+  fs.writeFileSync(timestampedPath, html);
+
+  return {
+    outputPath,
+    timestampedPath,
+    overallStatus,
+    scenarios,
+    summary: { passed, failed, skipped },
+  };
+}
+
+if (require.main === module) {
+  const result = buildCucumberReport();
+  console.log(`Relatório HTML gerado em ${result.outputPath}`);
+  console.log(`Relatório com timestamp gerado em ${result.timestampedPath}`);
+  console.log(`overall_status=${result.overallStatus}`);
+}
+
+module.exports = { buildCucumberReport };

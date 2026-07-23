@@ -52,8 +52,17 @@ jobs:
         if: always()
         run: |
           mkdir -p public
-          cp reports/cucumber-report.html public/index.html
-          ls reports/*.html | while read f; do cp "$f" "public/$(basename "$f")"; done
+          if [ -f reports/cucumber-report.html ]; then
+            cp reports/cucumber-report.html public/index.html
+          else
+            echo 'cucumber-report.html not found; creating a placeholder page.'
+            printf '<html><body><h1>BDD report unavailable</h1></body></html>' > public/index.html
+          fi
+          if ls reports/*.html >/dev/null 2>&1; then
+            for f in reports/*.html; do
+              cp "$f" "public/$(basename "$f")"
+            done
+          fi
 
       - name: Upload Pages artifact
         if: always() && github.event_name != 'pull_request'
