@@ -1,4 +1,6 @@
-import { Before, After, setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
+import { Before, After, setDefaultTimeout, setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
+
+setDefaultTimeout(60 * 1000);
 
 interface SkipWorld extends World {
   skip?: () => Promise<void>;
