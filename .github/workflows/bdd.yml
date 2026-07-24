@@ -39,6 +39,14 @@ jobs:
       - name: Run BDD tests on all browsers
         run: npm run test:bdd:multi
 
+      - name: Restore executions metadata cache
+        uses: actions/cache@v4
+        with:
+          path: reports/executions.json
+          key: ${{ runner.os }}-executions-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-executions-
+
       - name: Generate HTML report
         if: always()
         env:
